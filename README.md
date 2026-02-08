@@ -17,7 +17,6 @@
 
 <br/>
 
-<img src="docs/assets/orqupay-logo.png" alt="Orqupay Logo" width="200"/>
 
 <br/>
 
