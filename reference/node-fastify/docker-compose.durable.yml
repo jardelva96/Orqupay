@@ -1,0 +1,25 @@
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: pmc
+    ports:
+      - "${PMC_DOCKER_POSTGRES_PORT:-55432}:5432"
+    volumes:
+      - pmc_postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    restart: unless-stopped
+    ports:
+      - "${PMC_DOCKER_REDIS_PORT:-56379}:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - pmc_redis_data:/data
+
+volumes:
+  pmc_postgres_data:
+  pmc_redis_data:

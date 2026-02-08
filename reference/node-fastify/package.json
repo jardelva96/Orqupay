@@ -1,0 +1,49 @@
+{
+  "name": "pmc-reference-node-fastify",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Reference implementation for Payment Module Core",
+  "license": "Apache-2.0",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/src/index.js",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest",
+    "benchmark:compare": "tsx scripts/benchmark-compare.ts",
+    "slo:chaos": "tsx scripts/slo-chaos.ts",
+    "dr:drill": "tsx scripts/dr-drill.ts",
+    "contracts:check": "node scripts/validate-contracts.mjs",
+    "db:migrate": "tsx scripts/postgres-migrate.ts",
+    "quality": "npm run lint && npm run typecheck && npm run test:coverage && npm run contracts:check && npm run events:check",
+    "events:check": "node scripts/check-event-catalog.mjs"
+  },
+  "dependencies": {
+    "fastify": "^5.3.3",
+    "ioredis": "^5.8.1",
+    "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.34.0",
+    "@types/node": "^24.3.0",
+    "@types/pg": "^8.15.6",
+    "@vitest/coverage-v8": "^3.2.4",
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "eslint": "^9.34.0",
+    "globals": "^16.3.0",
+    "js-yaml": "^4.1.0",
+    "tsx": "^4.20.5",
+    "typescript-eslint": "^8.41.0",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}

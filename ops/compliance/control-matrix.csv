@@ -1,0 +1,21 @@
+control_id,domain,description,pci_dss_4_0_1,soc2_tsc,iso_27001_2022,owner,evidence,frequency,status
+IAM-001,Identity Access,All privileged access protected with MFA,8.4,CC6.1,A.5.15 IAM policy and procedures,Security,"MFA policy, IdP export, access review minutes",Monthly,Planned
+IAM-002,Identity Access,Least privilege and role based access control,7.2,CC6.2,A.5.18 Access rights,Security,"RBAC matrix, approval tickets, quarterly review",Quarterly,Planned
+IAM-003,Identity Access,Joiner mover leaver process enforced,7.2,CC1.2,A.6.5 Responsibilities after termination,PeopleOps,"HR workflow, deprovision logs",Monthly,Planned
+KEY-001,Cryptography,Secrets stored in managed vault with rotation,3.6,CC6.7,A.8.24 Use of cryptography,Platform,"Vault/KMS policy, rotation logs",Monthly,InProgress
+NET-001,Network,CDE network segmentation and firewall policy,1.2,CC6.6,A.8.20 Network security,Platform,"Network diagrams, firewall rules, segmentation test",Quarterly,Planned
+NET-002,Network,ASV external scanning and remediation SLA,11.3.2,CC7.1,A.8.8 Management of technical vulnerabilities,Security,"ASV reports, remediation tickets",Quarterly,Planned
+APP-001,Secure SDLC,Code review and static analysis mandatory,6.3.2,CC8.1,A.8.28 Secure coding,Engineering,"PR reviews, SAST logs, branch protections",Continuous,Implemented
+APP-002,Secure SDLC,Dependency vulnerability management,6.3.3,CC7.1,A.8.8 Management of technical vulnerabilities,Engineering,"SCA reports, patch records",Weekly,Implemented
+APP-003,Secure SDLC,Penetration testing scope and annual execution,11.4.4,CC4.1,A.8.29 Security testing in development and acceptance,Security,"Pentest report, action plan",Annual,Planned
+LOG-001,Logging,Audit logs for admin and payment critical actions,10.2,CC7.2,A.8.15 Logging,Platform,"SIEM dashboards, sample logs, retention policy",Continuous,InProgress
+LOG-002,Logging,Time synchronization across systems,10.6,CC7.2,A.8.17 Clock synchronization,Platform,"NTP config evidence, drift report",Monthly,Planned
+MON-001,Monitoring,SLO monitoring with alerting and on-call,10.7,CC7.2,A.5.24 Information security incident management planning and preparation,SRE,"SLO dashboards, alert rules, paging tests",Continuous,Implemented
+BCP-001,Business Continuity,Documented BCP and DR policy with RTO RPO targets,12.10.1,CC3.2,A.5.30 ICT readiness for business continuity,Risk,"DR policy, approvals, governance minutes",Annual,Implemented
+BCP-002,Business Continuity,DR drills executed and measured against target,12.10.1,CC3.2,A.5.30 ICT readiness for business continuity,SRE,"Drill report JSON, postmortem, corrective actions",Quarterly,Implemented
+IR-001,Incident Response,Incident management runbook with severity model,12.10.4,CC7.4,A.5.25 Assessment and decision on information security events,Security,"Runbook version, tabletop records",Quarterly,Implemented
+IR-002,Incident Response,Breach communication workflow and legal escalation,12.10.5,CC2.2,A.5.26 Response to information security incidents,Security,"Comms templates, legal approvals, incident timeline",Annual,Planned
+THIRD-001,Third Party,Vendor security due diligence process,12.8,CC9.2,A.5.19 Information security in supplier relationships,Risk,"Vendor questionnaire, contract clauses, review logs",Annual,Planned
+DATA-001,Privacy,Data classification and retention policy,3.2,CC8.1,A.5.12 Classification of information,Legal,"Data inventory, retention matrix, deletion logs",Quarterly,Planned
+DATA-002,Privacy,Backup encryption and restore verification,3.5,CC7.3,A.8.13 Information backup,SRE,"Backup job logs, restore tests, key custody evidence",Monthly,InProgress
+CHANGE-001,Change Mgmt,Production changes require approval and rollback plan,6.5.2,CC8.1,A.8.32 Change management,Engineering,"Change tickets, CAB notes, rollback evidence",Continuous,Implemented

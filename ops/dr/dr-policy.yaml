@@ -1,0 +1,34 @@
+version: "1.0.0"
+owner: "SRE"
+approved_by: "CTO"
+last_reviewed_at: "2026-02-08"
+tiers:
+  - tier: "tier_0"
+    services:
+      - "payment-intents"
+      - "refunds"
+      - "webhooks"
+    rto_seconds: 300
+    rpo_seconds: 60
+  - tier: "tier_1"
+    services:
+      - "payment-events"
+      - "operational-reporting"
+    rto_seconds: 900
+    rpo_seconds: 300
+  - tier: "tier_2"
+    services:
+      - "analytics-batch"
+    rto_seconds: 14400
+    rpo_seconds: 3600
+drill:
+  minimum_frequency: "quarterly"
+  required_artifacts:
+    - "dr-report.json"
+    - "timeline.md"
+    - "postmortem.md"
+  mandatory_roles:
+    - "incident_commander"
+    - "ops_lead"
+    - "app_lead"
+    - "security_lead"

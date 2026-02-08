@@ -1,0 +1,11 @@
+evidence_id,control_id,evidence_name,system_of_record,owner,collection_frequency,retention_months,last_collected,next_due,status
+EVID-001,IAM-001,MFA Enforcement Export,IdP,Security,Monthly,24,2026-02-01,2026-03-01,Pending
+EVID-002,IAM-002,Privileged Access Review Minutes,GRC,Security,Quarterly,36,2026-01-15,2026-04-15,Pending
+EVID-003,KEY-001,Secrets Rotation Logs,Vault/KMS,Platform,Monthly,24,2026-02-02,2026-03-02,Pending
+EVID-004,NET-001,Segmentation Test Report,GRC,Platform,Quarterly,36,2026-01-20,2026-04-20,Pending
+EVID-005,APP-001,Pull Request Approval Samples,Git,Engineering,Monthly,24,2026-02-05,2026-03-05,Pending
+EVID-006,APP-002,Dependency Scan Report,CI,Engineering,Weekly,24,2026-02-07,2026-02-14,Pending
+EVID-007,LOG-001,Security Audit Log Sample,SIEM,Platform,Monthly,24,2026-02-06,2026-03-06,Pending
+EVID-008,MON-001,SLO Alert Test Record,Observability,SRE,Monthly,24,2026-02-06,2026-03-06,Pending
+EVID-009,BCP-002,DR Drill Report,DR Reports,SRE,Quarterly,36,2026-01-30,2026-04-30,Pending
+EVID-010,IR-001,Incident Tabletop Report,GRC,Security,Quarterly,36,2026-01-25,2026-04-25,Pending

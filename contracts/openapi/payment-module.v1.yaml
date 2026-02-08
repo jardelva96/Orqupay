@@ -1,0 +1,2021 @@
+openapi: 3.1.0
+info:
+  title: Payment Module Core API
+  version: 1.0.0
+  description: Language-agnostic payment contract.
+servers:
+  - url: https://api.example.com
+security:
+  - bearerAuth: []
+paths:
+  /health/live:
+    get:
+      summary: Liveness probe
+      operationId: healthLive
+      security: []
+      responses:
+        '200':
+          description: Service is alive
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+  /health/ready:
+    get:
+      summary: Readiness probe
+      operationId: healthReady
+      security: []
+      responses:
+        '200':
+          description: Service is ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+  /metrics:
+    get:
+      summary: Prometheus metrics endpoint
+      operationId: getMetrics
+      security: []
+      responses:
+        '200':
+          description: Prometheus metrics payload
+          content:
+            text/plain:
+              schema:
+                type: string
+  /v1/payment-intents:
+    get:
+      summary: List payment intents
+      operationId: listPaymentIntents
+      parameters:
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 5000
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 512
+            pattern: '^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$'
+        - in: query
+          name: amount_min
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+        - in: query
+          name: amount_max
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+        - in: query
+          name: currency
+          required: false
+          schema:
+            type: string
+            pattern: '^[A-Za-z]{3}$'
+        - in: query
+          name: status
+          required: false
+          schema:
+            type: string
+            enum:
+              - requires_confirmation
+              - processing
+              - requires_action
+              - succeeded
+              - failed
+              - canceled
+        - in: query
+          name: customer_id
+          required: false
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 255
+        - in: query
+          name: provider
+          required: false
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 255
+        - in: query
+          name: provider_reference
+          required: false
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 255
+        - in: query
+          name: payment_method_type
+          required: false
+          schema:
+            type: string
+            enum: [card, pix, boleto, wallet, bank_transfer]
+        - in: query
+          name: created_from
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: created_to
+          required: false
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListPaymentIntentsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '422':
+          description: Invalid list filter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      summary: Create payment intent
+      operationId: createPaymentIntent
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 128
+            pattern: '^[A-Za-z0-9._:-]+$'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePaymentIntentRequest'
+      responses:
+        '201':
+          description: Created
+          headers:
+            Idempotency-Key:
+              $ref: '#/components/headers/IdempotencyKeyEcho'
+            X-Idempotency-Replayed:
+              $ref: '#/components/headers/IdempotencyReplayed'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentIntent'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '422':
+          description: Invalid idempotency key format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Duplicate idempotency key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/payment-intents/{id}:
+    get:
+      summary: Get payment intent
+      operationId: getPaymentIntent
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentIntent'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/payment-intents/{id}/confirm:
+    post:
+      summary: Confirm payment intent
+      operationId: confirmPaymentIntent
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 128
+            pattern: '^[A-Za-z0-9._:-]+$'
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Updated
+          headers:
+            Idempotency-Key:
+              $ref: '#/components/headers/IdempotencyKeyEcho'
+            X-Idempotency-Replayed:
+              $ref: '#/components/headers/IdempotencyReplayed'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentIntent'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '422':
+          description: Invalid idempotency key format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/payment-intents/{id}/capture:
+    post:
+      summary: Capture a previously authorized payment
+      operationId: capturePaymentIntent
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 128
+            pattern: '^[A-Za-z0-9._:-]+$'
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                amount:
+                  type: integer
+                  minimum: 1
+              required:
+                - amount
+      responses:
+        '200':
+          description: Captured
+          headers:
+            Idempotency-Key:
+              $ref: '#/components/headers/IdempotencyKeyEcho'
+            X-Idempotency-Replayed:
+              $ref: '#/components/headers/IdempotencyReplayed'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentIntent'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '422':
+          description: Invalid idempotency key format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/payment-intents/{id}/cancel:
+    post:
+      summary: Cancel payment intent
+      operationId: cancelPaymentIntent
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 128
+            pattern: '^[A-Za-z0-9._:-]+$'
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Canceled
+          headers:
+            Idempotency-Key:
+              $ref: '#/components/headers/IdempotencyKeyEcho'
+            X-Idempotency-Replayed:
+              $ref: '#/components/headers/IdempotencyReplayed'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentIntent'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '422':
+          description: Invalid idempotency key format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Invalid state or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/refunds:
+    get:
+      summary: List refunds
+      operationId: listRefunds
+      parameters:
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 5000
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 512
+            pattern: '^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$'
+        - in: query
+          name: amount_min
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+        - in: query
+          name: amount_max
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+        - in: query
+          name: payment_intent_id
+          required: false
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 255
+        - in: query
+          name: status
+          required: false
+          schema:
+            type: string
+            enum: [pending, succeeded, failed]
+        - in: query
+          name: created_from
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: created_to
+          required: false
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListRefundsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '422':
+          description: Invalid list filter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      summary: Create refund
+      operationId: createRefund
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 128
+            pattern: '^[A-Za-z0-9._:-]+$'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRefundRequest'
+      responses:
+        '201':
+          description: Created
+          headers:
+            Idempotency-Key:
+              $ref: '#/components/headers/IdempotencyKeyEcho'
+            X-Idempotency-Replayed:
+              $ref: '#/components/headers/IdempotencyReplayed'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Refund'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '422':
+          description: Invalid idempotency key format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/payment-events:
+    get:
+      summary: List payment events
+      operationId: listPaymentEvents
+      parameters:
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 5000
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 512
+            pattern: '^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$'
+        - in: query
+          name: payment_intent_id
+          required: false
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 255
+        - in: query
+          name: event_type
+          required: false
+          schema:
+            type: string
+            enum:
+              - payment_intent.created
+              - payment_intent.processing
+              - payment_intent.requires_action
+              - payment_intent.succeeded
+              - payment_intent.failed
+              - payment_intent.canceled
+              - refund.succeeded
+              - refund.failed
+              - chargeback.opened
+              - chargeback.won
+              - chargeback.lost
+        - in: query
+          name: occurred_from
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: occurred_to
+          required: false
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListPaymentEventsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '422':
+          description: Invalid list filter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/ledger-entries:
+    get:
+      summary: List ledger entries
+      operationId: listLedgerEntries
+      parameters:
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 5000
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 512
+            pattern: '^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$'
+        - in: query
+          name: amount_min
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+        - in: query
+          name: amount_max
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+        - in: query
+          name: payment_intent_id
+          required: false
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 255
+        - in: query
+          name: refund_id
+          required: false
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 255
+        - in: query
+          name: entry_type
+          required: false
+          schema:
+            type: string
+            enum: [authorization, capture, refund]
+        - in: query
+          name: direction
+          required: false
+          schema:
+            type: string
+            enum: [debit, credit]
+        - in: query
+          name: currency
+          required: false
+          schema:
+            type: string
+            pattern: '^[A-Za-z]{3}$'
+        - in: query
+          name: created_from
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: created_to
+          required: false
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListLedgerEntriesResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '422':
+          description: Invalid list filter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/chargebacks:
+    get:
+      summary: List chargebacks
+      operationId: listChargebacks
+      parameters:
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 5000
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 512
+            pattern: '^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$'
+        - in: query
+          name: payment_intent_id
+          required: false
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 255
+        - in: query
+          name: status
+          required: false
+          schema:
+            type: string
+            enum: [open, under_review, won, lost]
+        - in: query
+          name: created_from
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: created_to
+          required: false
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListChargebacksResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '422':
+          description: Invalid list filter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      summary: Create chargeback dispute
+      operationId: createChargeback
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 128
+            pattern: '^[A-Za-z0-9._:-]+$'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateChargebackRequest'
+      responses:
+        '201':
+          description: Created
+          headers:
+            Idempotency-Key:
+              $ref: '#/components/headers/IdempotencyKeyEcho'
+            X-Idempotency-Replayed:
+              $ref: '#/components/headers/IdempotencyReplayed'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Chargeback'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '422':
+          description: Invalid chargeback request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/chargebacks/{id}/resolve:
+    post:
+      summary: Resolve chargeback dispute status
+      operationId: resolveChargeback
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 128
+            pattern: '^[A-Za-z0-9._:-]+$'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResolveChargebackRequest'
+      responses:
+        '200':
+          description: Updated
+          headers:
+            Idempotency-Key:
+              $ref: '#/components/headers/IdempotencyKeyEcho'
+            X-Idempotency-Replayed:
+              $ref: '#/components/headers/IdempotencyReplayed'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Chargeback'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Invalid chargeback state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Invalid chargeback request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/reconciliation/summary:
+    get:
+      summary: Summarize settlement totals from ledger
+      operationId: summarizeReconciliation
+      parameters:
+        - in: query
+          name: currency
+          required: false
+          schema:
+            type: string
+            pattern: '^[A-Za-z]{3}$'
+        - in: query
+          name: created_from
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: created_to
+          required: false
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReconciliationSummaryResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '422':
+          description: Invalid filter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/webhook-endpoints:
+    post:
+      summary: Register webhook endpoint
+      operationId: createWebhookEndpoint
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWebhookEndpointRequest'
+      responses:
+        '201':
+          description: Created
+          headers:
+            ETag:
+              $ref: '#/components/headers/EntityTag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookEndpoint'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+    get:
+      summary: List webhook endpoints
+      operationId: listWebhookEndpoints
+      parameters:
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 5000
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 512
+            pattern: '^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListWebhookEndpointsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /v1/webhook-endpoints/{id}:
+    get:
+      summary: Get webhook endpoint
+      operationId: getWebhookEndpoint
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          headers:
+            ETag:
+              $ref: '#/components/headers/EntityTag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookEndpoint'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '404':
+          description: Webhook endpoint not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    patch:
+      summary: Update webhook endpoint
+      operationId: updateWebhookEndpoint
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+        - in: header
+          name: If-Match
+          required: false
+          schema:
+            type: string
+            minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateWebhookEndpointRequest'
+      responses:
+        '200':
+          description: Updated
+          headers:
+            ETag:
+              $ref: '#/components/headers/EntityTag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookEndpoint'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '404':
+          description: Webhook endpoint not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '412':
+          description: If-Match precondition failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/webhook-endpoints/{id}/rotate-secret:
+    post:
+      summary: Rotate webhook endpoint secret
+      operationId: rotateWebhookEndpointSecret
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+        - in: header
+          name: If-Match
+          required: false
+          schema:
+            type: string
+            minLength: 1
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RotateWebhookSecretRequest'
+      responses:
+        '200':
+          description: Updated
+          headers:
+            ETag:
+              $ref: '#/components/headers/EntityTag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookEndpoint'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '404':
+          description: Webhook endpoint not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '412':
+          description: If-Match precondition failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/webhook-deliveries:
+    get:
+      summary: List webhook deliveries
+      operationId: listWebhookDeliveries
+      parameters:
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 5000
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 512
+            pattern: '^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListWebhookDeliveriesResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /v1/webhook-dead-letters:
+    get:
+      summary: List webhook dead letters
+      operationId: listWebhookDeadLetters
+      parameters:
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 5000
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 512
+            pattern: '^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$'
+        - in: query
+          name: status
+          required: false
+          schema:
+            type: string
+            enum: [pending, replayed]
+        - in: query
+          name: event_type
+          required: false
+          schema:
+            type: string
+            enum:
+              - payment_intent.created
+              - payment_intent.processing
+              - payment_intent.requires_action
+              - payment_intent.succeeded
+              - payment_intent.failed
+              - payment_intent.canceled
+              - refund.succeeded
+              - refund.failed
+              - chargeback.opened
+              - chargeback.won
+              - chargeback.lost
+        - in: query
+          name: endpoint_id
+          required: false
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 255
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListWebhookDeadLettersResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /v1/webhook-dead-letters/{id}:
+    get:
+      summary: Get webhook dead letter by id
+      operationId: getWebhookDeadLetter
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookDeadLetter'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '404':
+          description: Webhook dead letter not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/webhook-dead-letters/{id}/replay:
+    post:
+      summary: Replay a webhook dead letter
+      operationId: replayWebhookDeadLetter
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Replayed or replay-attempted dead letter metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookDeadLetter'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '404':
+          description: Webhook dead letter not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Dead letter already replayed or endpoint disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/webhook-dead-letters/replay-batch:
+    post:
+      summary: Replay webhook dead letters in batch
+      operationId: replayWebhookDeadLettersBatch
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReplayDeadLettersBatchRequest'
+      responses:
+        '200':
+          description: Batch replay summary and per-item results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReplayDeadLettersBatchResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '422':
+          description: Invalid batch replay payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: APIKey
+  headers:
+    EntityTag:
+      description: Current entity tag for optimistic concurrency control.
+      schema:
+        type: string
+        minLength: 1
+    IdempotencyReplayed:
+      description: Indicates if the response body was replayed from a previous idempotent execution.
+      schema:
+        type: boolean
+    IdempotencyKeyEcho:
+      description: Echoes the idempotency key used for this request.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+        pattern: '^[A-Za-z0-9._:-]+$'
+    RateLimitLimit:
+      description: Maximum requests allowed in current rate-limit window.
+      schema:
+        type: integer
+        minimum: 1
+    RateLimitRemaining:
+      description: Remaining requests in current rate-limit window.
+      schema:
+        type: integer
+        minimum: 0
+    RateLimitReset:
+      description: Seconds until the current rate-limit window resets.
+      schema:
+        type: integer
+        minimum: 1
+    RetryAfter:
+      description: Seconds to wait before retrying after a rate limit rejection.
+      schema:
+        type: integer
+        minimum: 1
+  responses:
+    Unauthorized:
+      description: Authentication failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    TooManyRequests:
+      description: Rate limit exceeded
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimitLimit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimitRemaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimitReset'
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+  schemas:
+    CreatePaymentIntentRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        amount:
+          type: integer
+          minimum: 1
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+        customer:
+          type: object
+          additionalProperties: false
+          properties:
+            id:
+              type: string
+          required:
+            - id
+        payment_method:
+          type: object
+          additionalProperties: false
+          properties:
+            type:
+              type: string
+              enum: [card, pix, boleto, wallet, bank_transfer]
+            token:
+              type: string
+          required:
+            - type
+            - token
+        capture_method:
+          type: string
+          enum: [automatic, manual]
+      required:
+        - amount
+        - currency
+        - customer
+        - payment_method
+        - capture_method
+    PaymentIntent:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+        amount:
+          type: integer
+        currency:
+          type: string
+        status:
+          type: string
+          enum:
+            - requires_confirmation
+            - processing
+            - requires_action
+            - succeeded
+            - failed
+            - canceled
+        capture_method:
+          type: string
+          enum: [automatic, manual]
+        customer_id:
+          type: string
+        payment_method_type:
+          type: string
+          enum: [card, pix, boleto, wallet, bank_transfer]
+        authorized_amount:
+          type: integer
+          minimum: 0
+        captured_amount:
+          type: integer
+          minimum: 0
+        refunded_amount:
+          type: integer
+          minimum: 0
+        amount_refundable:
+          type: integer
+          minimum: 0
+        provider:
+          type: string
+          nullable: true
+        provider_reference:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - amount
+        - currency
+        - status
+        - capture_method
+        - customer_id
+        - payment_method_type
+        - authorized_amount
+        - captured_amount
+        - refunded_amount
+        - amount_refundable
+        - provider
+        - provider_reference
+        - created_at
+        - updated_at
+    CreateRefundRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        payment_intent_id:
+          type: string
+        amount:
+          type: integer
+          minimum: 1
+        reason:
+          type: string
+          enum: [requested_by_customer, duplicate, fraud, other]
+      required:
+        - payment_intent_id
+        - amount
+    Refund:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+        payment_intent_id:
+          type: string
+        amount:
+          type: integer
+        status:
+          type: string
+          enum: [pending, succeeded, failed]
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - payment_intent_id
+        - amount
+        - status
+        - created_at
+    CreateChargebackRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        payment_intent_id:
+          type: string
+        amount:
+          type: integer
+          minimum: 1
+        reason:
+          type: string
+          enum: [fraud, chargeback_dispute, service_not_received, other]
+        evidence_url:
+          type: string
+          minLength: 1
+      required:
+        - payment_intent_id
+        - amount
+        - reason
+    ResolveChargebackRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        status:
+          type: string
+          enum: [under_review, won, lost]
+      required:
+        - status
+    Chargeback:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+        payment_intent_id:
+          type: string
+        amount:
+          type: integer
+        reason:
+          type: string
+          enum: [fraud, chargeback_dispute, service_not_received, other]
+        status:
+          type: string
+          enum: [open, under_review, won, lost]
+        evidence_url:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - payment_intent_id
+        - amount
+        - reason
+        - status
+        - created_at
+        - updated_at
+    LedgerEntry:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+        payment_intent_id:
+          type: string
+        refund_id:
+          type: string
+          nullable: true
+        entry_type:
+          type: string
+          enum: [authorization, capture, refund, chargeback]
+        direction:
+          type: string
+          enum: [debit, credit]
+        amount:
+          type: integer
+          minimum: 1
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+        provider:
+          type: string
+          nullable: true
+        provider_reference:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - payment_intent_id
+        - refund_id
+        - entry_type
+        - direction
+        - amount
+        - currency
+        - provider
+        - provider_reference
+        - created_at
+    PaymentEvent:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+        api_version:
+          type: string
+        source:
+          type: string
+        event_version:
+          type: string
+        type:
+          type: string
+          enum:
+            - payment_intent.created
+            - payment_intent.processing
+            - payment_intent.requires_action
+            - payment_intent.succeeded
+            - payment_intent.failed
+            - payment_intent.canceled
+            - refund.succeeded
+            - refund.failed
+            - chargeback.opened
+            - chargeback.won
+            - chargeback.lost
+        occurred_at:
+          type: string
+          format: date-time
+        data:
+          type: object
+      required:
+        - id
+        - api_version
+        - source
+        - event_version
+        - type
+        - occurred_at
+        - data
+    CreateWebhookEndpointRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        url:
+          type: string
+          minLength: 1
+        events:
+          type: array
+          items:
+            type: string
+            enum:
+              - payment_intent.created
+              - payment_intent.processing
+              - payment_intent.requires_action
+              - payment_intent.succeeded
+              - payment_intent.failed
+              - payment_intent.canceled
+              - refund.succeeded
+              - refund.failed
+              - chargeback.opened
+              - chargeback.won
+              - chargeback.lost
+        secret:
+          type: string
+        enabled:
+          type: boolean
+      required:
+        - url
+    RotateWebhookSecretRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        secret:
+          type: string
+          minLength: 1
+    UpdateWebhookEndpointRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        url:
+          type: string
+          minLength: 1
+        events:
+          type: array
+          items:
+            type: string
+            enum:
+              - payment_intent.created
+              - payment_intent.processing
+              - payment_intent.requires_action
+              - payment_intent.succeeded
+              - payment_intent.failed
+              - payment_intent.canceled
+              - refund.succeeded
+              - refund.failed
+              - chargeback.opened
+              - chargeback.won
+              - chargeback.lost
+        enabled:
+          type: boolean
+    WebhookEndpoint:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+        url:
+          type: string
+        events:
+          type: array
+          items:
+            type: string
+        secret:
+          type: string
+        enabled:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - url
+        - events
+        - secret
+        - enabled
+        - created_at
+    WebhookDelivery:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+        endpoint_id:
+          type: string
+        event_id:
+          type: string
+        event_type:
+          type: string
+        attempt:
+          type: integer
+          minimum: 1
+        status:
+          type: string
+          enum: [succeeded, failed]
+        response_status:
+          type: integer
+        error_code:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        delivered_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - endpoint_id
+        - event_id
+        - event_type
+        - attempt
+        - status
+        - created_at
+    WebhookDeadLetter:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+        endpoint_id:
+          type: string
+        endpoint_url:
+          type: string
+        event_id:
+          type: string
+        event_type:
+          type: string
+        attempts:
+          type: integer
+          minimum: 1
+        status:
+          type: string
+          enum: [pending, replayed]
+        replay_count:
+          type: integer
+          minimum: 0
+        failure_reason:
+          type: string
+          enum: [permanent_failure, max_attempts_exhausted]
+        response_status:
+          type: integer
+        error_code:
+          type: string
+        failed_at:
+          type: string
+          format: date-time
+        last_replayed_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - endpoint_id
+        - endpoint_url
+        - event_id
+        - event_type
+        - attempts
+        - status
+        - replay_count
+        - failure_reason
+        - failed_at
+    ReplayDeadLettersBatchRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 5000
+        status:
+          type: string
+          enum: [pending, replayed]
+        event_type:
+          type: string
+          enum:
+            - payment_intent.created
+            - payment_intent.processing
+            - payment_intent.requires_action
+            - payment_intent.succeeded
+            - payment_intent.failed
+            - payment_intent.canceled
+            - refund.succeeded
+            - refund.failed
+            - chargeback.opened
+            - chargeback.won
+            - chargeback.lost
+        endpoint_id:
+          type: string
+          minLength: 1
+          maxLength: 255
+    ReplayDeadLettersBatchItem:
+      type: object
+      additionalProperties: false
+      properties:
+        dead_letter_id:
+          type: string
+        status:
+          type: string
+          enum: [pending, replayed]
+        replay_count:
+          type: integer
+          minimum: 0
+        outcome:
+          type: string
+          enum: [replayed, failed]
+        error_code:
+          type: string
+      required:
+        - dead_letter_id
+        - status
+        - replay_count
+        - outcome
+    ReplayDeadLettersBatchSummary:
+      type: object
+      additionalProperties: false
+      properties:
+        processed:
+          type: integer
+          minimum: 0
+        replayed:
+          type: integer
+          minimum: 0
+        failed:
+          type: integer
+          minimum: 0
+        has_more:
+          type: boolean
+      required:
+        - processed
+        - replayed
+        - failed
+        - has_more
+    ReplayDeadLettersBatchResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReplayDeadLettersBatchItem'
+        summary:
+          $ref: '#/components/schemas/ReplayDeadLettersBatchSummary'
+      required:
+        - data
+        - summary
+    ListPaymentIntentsResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/PaymentIntent'
+        pagination:
+          $ref: '#/components/schemas/CursorPagination'
+      required:
+        - data
+        - pagination
+    ListRefundsResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Refund'
+        pagination:
+          $ref: '#/components/schemas/CursorPagination'
+      required:
+        - data
+        - pagination
+    ListChargebacksResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Chargeback'
+        pagination:
+          $ref: '#/components/schemas/CursorPagination'
+      required:
+        - data
+        - pagination
+    ListPaymentEventsResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/PaymentEvent'
+        pagination:
+          $ref: '#/components/schemas/CursorPagination'
+      required:
+        - data
+        - pagination
+    ListLedgerEntriesResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/LedgerEntry'
+        pagination:
+          $ref: '#/components/schemas/CursorPagination'
+      required:
+        - data
+        - pagination
+    ReconciliationSummaryResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        currency:
+          type: string
+        created_from:
+          type: string
+          format: date-time
+        created_to:
+          type: string
+          format: date-time
+        totals:
+          type: object
+          additionalProperties: false
+          properties:
+            captured_total:
+              type: integer
+            refunded_total:
+              type: integer
+            chargeback_total:
+              type: integer
+            net_settled_total:
+              type: integer
+            entry_count:
+              type: integer
+              minimum: 0
+          required:
+            - captured_total
+            - refunded_total
+            - chargeback_total
+            - net_settled_total
+            - entry_count
+      required:
+        - totals
+    ListWebhookEndpointsResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/WebhookEndpoint'
+        pagination:
+          $ref: '#/components/schemas/CursorPagination'
+      required:
+        - data
+        - pagination
+    ListWebhookDeliveriesResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/WebhookDelivery'
+        pagination:
+          $ref: '#/components/schemas/CursorPagination'
+      required:
+        - data
+        - pagination
+    ListWebhookDeadLettersResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/WebhookDeadLetter'
+        pagination:
+          $ref: '#/components/schemas/CursorPagination'
+      required:
+        - data
+        - pagination
+    CursorPagination:
+      type: object
+      additionalProperties: false
+      properties:
+        limit:
+          type: integer
+          minimum: 1
+        has_more:
+          type: boolean
+        next_cursor:
+          type:
+            - string
+            - 'null'
+      required:
+        - limit
+        - has_more
+        - next_cursor
+    HealthStatus:
+      type: object
+      additionalProperties: false
+      properties:
+        status:
+          type: string
+          enum: [ok, ready]
+      required:
+        - status
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            request_id:
+              type: string
+          required:
+            - code
+            - message
+      required:
+        - error
+

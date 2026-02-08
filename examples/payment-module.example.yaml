@@ -1,0 +1,78 @@
+version: 1
+environment: development
+
+api:
+  port: 8080
+  request_timeout_ms: 5000
+
+providers:
+  - name: provider_a
+    enabled: true
+    endpoint: https://api.provider-a.example
+    api_key: ${PROVIDER_A_API_KEY}
+    supported_methods: [card, pix, boleto]
+  - name: provider_b
+    enabled: true
+    endpoint: https://api.provider-b.example
+    api_key: ${PROVIDER_B_API_KEY}
+    supported_methods: [card, wallet, bank_transfer]
+
+routing:
+  default_provider: provider_a
+  rules:
+    - when:
+        payment_method: pix
+        currency: BRL
+      use: provider_a
+    - when:
+        payment_method: card
+      order: [provider_b, provider_a]
+  failover_on:
+    - timeout
+    - provider_unavailable
+
+risk:
+  enabled: true
+  default_action: review
+  rules:
+    - name: high_value_block
+      when:
+        amount_gt: 1000000
+      action: deny
+    - name: known_customer_fast_path
+      when:
+        customer_trust_score_gte: 90
+      action: allow
+
+resilience:
+  timeout_ms:
+    create_payment: 2500
+    capture_payment: 2000
+    refund: 3000
+  retry:
+    max_attempts: 3
+    backoff_ms: [100, 300, 700]
+    retry_on: [timeout, transient_network_error]
+  circuit_breaker:
+    failure_rate_threshold: 0.5
+    open_state_seconds: 20
+    half_open_max_calls: 5
+
+webhooks:
+  signing_secret: ${WEBHOOK_SIGNING_SECRET}
+  replay_tolerance_seconds: 300
+  delivery:
+    max_attempts: 10
+    backoff_seconds: [5, 30, 120, 300]
+
+observability:
+  logs:
+    level: info
+    format: json
+  metrics:
+    enabled: true
+    endpoint: /metrics
+  tracing:
+    enabled: true
+    propagation: w3c
+
