@@ -1,7 +1,7 @@
 
 <div align="center">
 
-<img src="orqupay-logo.png" alt="Logo Orqupay" width="200"/>
+
 
 # 🐋 Orqupay
 
